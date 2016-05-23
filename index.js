@@ -14,7 +14,6 @@ const packages = {}
 const links = {}
 const bars = {}
 var strlength = 0
-var lines = 0
 
 let cores = require('os').cpus().length
 const queue = []
@@ -51,7 +50,7 @@ fs.readdir(dirname, (err, files) => {
 })
 
 function proceed () {
-  var count = lines = Object.keys(packages).length
+  var count = Object.keys(packages).length
   for (var file in packages) {
     const pkg = packages[file]
     linkorinstall(
@@ -86,9 +85,9 @@ function linkorinstall (file, deps, devdeps, done) {
       total: toinstall.length + tolink.length + 1
     })
 
-    bars[file].tick(0, { msg: 'waiting' })
+    bars[file].tick(0, { msg: '' })
 
-    run((next) => {
+    fork((next) => {
       install(file, toinstall, () => {
         link(file, tolink, () => {
           bars[file].tick({ msg: '' })
@@ -148,10 +147,9 @@ function link (file, tolink, done) {
 function test () {
   for (var file in packages) {
     const bar = bars[file]
-    bar.tick({ msg: 'testing'.bold })
-    run((next) => {
+    fork((next) => {
       let dots = '.'
-      let int = global.setInterval(() => {
+      const int = global.setInterval(() => {
         bar.tick({ msg: 'testing' + dots })
         dots = dots[2] ? '' : dots + '.'
       }, 500)
@@ -165,7 +163,7 @@ function test () {
   }
 }
 
-function run (fn) {
+function fork (fn) {
   if (fn) { queue.push(fn) }
   if (cores) {
     const queued = queue.shift()
@@ -173,15 +171,14 @@ function run (fn) {
       cores--
       queued(() => {
         cores++
-        run()
+        fork()
       })
-      run()
+      fork()
     }
   }
 }
 
 function cleanup () {
-  charm.move(0, lines)
   charm.cursor(true)
 }
 
