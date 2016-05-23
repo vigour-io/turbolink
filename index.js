@@ -14,12 +14,16 @@ const packages = {}
 const links = {}
 const bars = {}
 var strlength = 0
+var lines = 0
+
+let cores = require('os').cpus().length
+const queue = []
+
+process.on('uncaughtException', exit)
+process.on('SIGINT', exit)
+process.on('exit', cleanup)
 
 charm.cursor(false)
-
-process.on('exit', exit)
-process.on('SIGINT', exit)
-process.on('uncaughtException', exit)
 
 fs.readdir(dirname, (err, files) => {
   if (err) { throw err }
@@ -47,7 +51,7 @@ fs.readdir(dirname, (err, files) => {
 })
 
 function proceed () {
-  var count = Object.keys(packages).length
+  var count = lines = Object.keys(packages).length
   for (var file in packages) {
     const pkg = packages[file]
     linkorinstall(
@@ -79,12 +83,12 @@ function linkorinstall (file, deps, devdeps, done) {
       complete: '='.bold,
       incomplete: ' ',
       width: 20,
-      total: toinstall.length + tolink.length + 2
+      total: toinstall.length + tolink.length + 1
     })
 
-    bars[file].tick({ msg: 'waiting' })
+    bars[file].tick(0, { msg: 'waiting' })
 
-    execute((next) => {
+    run((next) => {
       install(file, toinstall, () => {
         link(file, tolink, () => {
           bars[file].tick({ msg: '' })
@@ -135,9 +139,7 @@ function link (file, tolink, done) {
     const to = path.join(file, 'node_modules', dep)
     bars[file].tick({ msg: dep })
     exec(`rm -rf ${to} && ln -s ` + from + ' ' + to)
-    .on('close', () => {
-      link(file, tolink, done)
-    })
+    .on('close', () => link(file, tolink, done))
   } else {
     done()
   }
@@ -147,7 +149,7 @@ function test () {
   for (var file in packages) {
     const bar = bars[file]
     bar.tick({ msg: 'testing'.bold })
-    execute((next) => {
+    run((next) => {
       let dots = '.'
       let int = global.setInterval(() => {
         bar.tick({ msg: 'testing' + dots })
@@ -163,15 +165,7 @@ function test () {
   }
 }
 
-function exit (options, err) {
-  charm.cursor(true)
-  charm.down(1000)
-  process.exit()
-}
-
-let cores = require('os').cpus().length
-const queue = []
-function execute (fn) {
+function run (fn) {
   if (fn) { queue.push(fn) }
   if (cores) {
     const queued = queue.shift()
@@ -179,9 +173,18 @@ function execute (fn) {
       cores--
       queued(() => {
         cores++
-        execute()
+        run()
       })
-      execute()
+      run()
     }
   }
+}
+
+function cleanup () {
+  charm.move(0, lines)
+  charm.cursor(true)
+}
+
+function exit (options, err) {
+  process.exit()
 }
