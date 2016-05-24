@@ -1,64 +1,72 @@
 'use strict'
 require('colors')
 const exec = require('child_process').exec
-const charm = require('charm')(process.stdout)
+const charm = require('charm')(process)
 const Progress = require('multi-progress')
 const argv = require('argh').argv
 const path = require('path')
 const fs = require('fs')
 
 const progress = new Progress(process.stderr)
-const dirname = process.cwd()
 const PKG = 'package.json'
 const packages = {}
 const links = {}
+const queue = []
 const bars = {}
+
+var cores = require('os').cpus().length
+var dirname = process.cwd()
+var pkgnumber = 0
 var strlength = 0
 var lines = 0
-
-let cores = require('os').cpus().length
-const queue = []
 
 process.on('uncaughtException', exit)
 process.on('SIGINT', exit)
 process.on('exit', cleanup)
 
-charm.cursor(false)
+fs.stat(path.join(dirname, PKG), (err) => {
+  console.log('TURBOLINK'.underline.bold)
 
-fs.readdir(dirname, (err, files) => {
-  if (err) { throw err }
-  console.log('TURBOLINK!'.bold.underline)
-  let count = 0
-  for (let i = files.length - 1; i >= 0; i--) {
-    const file = path.join(dirname, files[i])
-    const pkgpath = path.join(file, PKG)
-    count++
-    fs.stat(pkgpath, (err) => {
-      if (err) {
-        return count--
-      }
-      if (argv.pull) {
-        exec('git pull', { cwd: file }).on('close', readpackage)
-      } else {
-        readpackage()
-      }
-      function readpackage () {
-        fs.readFile(pkgpath, 'utf-8', (err, data) => {
-          if (err) { throw err }
-          const pkg = JSON.parse(data)
-          const l = pkg.name.length
-          packages[file] = pkg
-          links[pkg.name] = file
-          strlength = l > strlength ? l : strlength
-          --count || proceed()
-        })
-      }
-    })
-  }
+  charm.cursor(false)
+  charm.position((x, y) => lines = y)
+
+  if (!err) { dirname = path.dirname(dirname) }
+  fs.readdir(dirname, (err, files) => {
+    if (err) { throw err }
+    let count = 0
+    for (let i = files.length - 1; i >= 0; i--) {
+      const file = path.join(dirname, files[i])
+      const pkgpath = path.join(file, PKG)
+      count++
+      fs.stat(pkgpath, (err) => {
+        if (err) {
+          return count--
+        }
+        if (argv.pull) {
+          exec('git pull', { cwd: file }).on('close', readpackage)
+        } else {
+          readpackage()
+        }
+        function readpackage () {
+          fs.readFile(pkgpath, 'utf-8', (err, data) => {
+            if (err) { throw err }
+            const pkg = JSON.parse(data)
+            const l = pkg.name.length
+            packages[file] = pkg
+            links[pkg.name] = file
+            strlength = l > strlength ? l : strlength
+            pkgnumber += 1
+            --count || proceed()
+          })
+        }
+      })
+    }
+  })
 })
 
 function proceed () {
-  var count = lines = Object.keys(packages).length
+  var count = pkgnumber
+  lines += count
   for (var file in packages) {
     const pkg = packages[file]
     linkorinstall(
@@ -77,6 +85,7 @@ function linkorinstall (file, deps, devdeps, done) {
   if (deps || devdeps) {
     const tolink = []
     const toinstall = []
+
     collect(deps, tolink, toinstall)
     collect(devdeps, tolink, toinstall)
 
@@ -166,6 +175,7 @@ function test () {
         global.clearInterval(int)
         bar.tick({ msg: code ? '⨯'.red.bold : '✓'.green.bold })
         next()
+        if (!--pkgnumber) { exit() }
       })
     })
   }
@@ -187,10 +197,11 @@ function fork (fn) {
 }
 
 function cleanup () {
-  charm.move(lines)
+  charm.position(0, lines)
   charm.cursor(true)
+  charm.destroy()
 }
 
-function exit (options, err) {
+function exit () {
   process.exit()
 }
