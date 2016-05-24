@@ -14,6 +14,7 @@ const packages = {}
 const links = {}
 const bars = {}
 var strlength = 0
+var lines = 0
 
 let cores = require('os').cpus().length
 const queue = []
@@ -50,7 +51,7 @@ fs.readdir(dirname, (err, files) => {
 })
 
 function proceed () {
-  var count = Object.keys(packages).length
+  var count = lines = Object.keys(packages).length
   for (var file in packages) {
     const pkg = packages[file]
     linkorinstall(
@@ -179,6 +180,7 @@ function fork (fn) {
 }
 
 function cleanup () {
+  charm.move(lines)
   charm.cursor(true)
 }
 
