@@ -13,8 +13,8 @@ const packages = {}
 const links = {}
 const queue = []
 const bars = {}
-
-var cores = require('os').cpus().length
+const max = argv.max
+var cores = typeof max === 'number' ? max : max ? 1 : require('os').cpus().length
 var dirname = process.cwd()
 var pkgnumber = 0
 var strlength = 0
@@ -26,11 +26,11 @@ process.on('exit', cleanup)
 
 fs.stat(path.join(dirname, PKG), (err) => {
   console.log('TURBOLINK'.underline.bold)
-
   charm.cursor(false)
   charm.position((x, y) => lines = y)
 
   if (!err) { dirname = path.dirname(dirname) }
+
   fs.readdir(dirname, (err, files) => {
     if (err) { throw err }
     let count = 0
@@ -39,26 +39,38 @@ fs.stat(path.join(dirname, PKG), (err) => {
       const pkgpath = path.join(file, PKG)
       count++
       fs.stat(pkgpath, (err) => {
+
         if (err) {
           return count--
         }
-        if (argv.pull) {
-          exec('git pull', { cwd: file }).on('close', readpackage)
+
+        if (argv.reset) {
+          exec('rm -rf node_modules', { cwd: file })
+          .on('close', readpackage)
         } else {
           readpackage()
         }
+
         function readpackage () {
-          fs.readFile(pkgpath, 'utf-8', (err, data) => {
-            if (err) { throw err }
-            const pkg = JSON.parse(data)
-            const l = pkg.name.length
-            packages[file] = pkg
-            links[pkg.name] = file
-            strlength = l > strlength ? l : strlength
-            pkgnumber += 1
-            --count || proceed()
-          })
+          if (argv.pull) {
+            exec('git pull', { cwd: file })
+            .on('close', () => fs.readFile(pkgpath, 'utf-8', read))
+          } else {
+            fs.readFile(pkgpath, 'utf-8', read)
+          }
         }
+
+        function read (err, data) {
+          if (err) { throw err }
+          const pkg = JSON.parse(data)
+          const l = pkg.name.length
+          packages[file] = pkg
+          links[pkg.name] = file
+          strlength = l > strlength ? l : strlength
+          pkgnumber += 1
+          --count || proceed()
+        }
+
       })
     }
   })
@@ -104,7 +116,7 @@ function linkorinstall (file, deps, devdeps, done) {
 
     bars[file].tick(0, { msg: '' })
 
-    fork((next) => {
+    run((next) => {
       install(file, toinstall, () => {
         link(file, tolink, () => {
           bars[file].tick({ msg: '' })
@@ -138,6 +150,9 @@ function install (file, toinstall, done) {
       if (err) {
         exec('npm i ' + dep + ' --production --link', { cwd: file })
         .on('close', () => install(file, toinstall, done))
+      } else if (argv.update) {
+        exec('npm update ' + dep, { cwd: file })
+        .on('close', () => install(file, toinstall, done))
       } else {
         install(file, toinstall, done)
       }
@@ -164,7 +179,7 @@ function link (file, tolink, done) {
 function test () {
   for (var file in packages) {
     const bar = bars[file]
-    fork((next) => {
+    run((next) => {
       let dots = '.'
       const int = global.setInterval(() => {
         bar.tick({ msg: 'testing' + dots })
@@ -181,7 +196,7 @@ function test () {
   }
 }
 
-function fork (fn) {
+function run (fn) {
   if (fn) { queue.push(fn) }
   if (cores) {
     const queued = queue.shift()
@@ -189,9 +204,9 @@ function fork (fn) {
       cores--
       queued(() => {
         cores++
-        fork()
+        run()
       })
-      fork()
+      run()
     }
   }
 }
