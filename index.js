@@ -14,6 +14,8 @@ const links = {}
 const queue = []
 const bars = {}
 const max = argv.max
+const maxBuffer = 500 * 1024
+
 var cores = typeof max === 'number' ? max : max ? 1 : require('os').cpus().length
 var dirname = process.cwd()
 var pkgnumber = 0
@@ -45,7 +47,7 @@ fs.stat(path.join(dirname, PKG), (err) => {
         }
 
         if (argv.reset) {
-          exec('rm -rf node_modules', { cwd: file })
+          exec('rm -rf node_modules', { cwd: file, maxBuffer })
           .on('close', readpackage)
         } else {
           readpackage()
@@ -53,7 +55,7 @@ fs.stat(path.join(dirname, PKG), (err) => {
 
         function readpackage () {
           if (argv.pull) {
-            exec('git pull', { cwd: file })
+            exec('git pull', { cwd: file, maxBuffer })
             .on('close', () => fs.readFile(pkgpath, 'utf-8', read))
           } else {
             fs.readFile(pkgpath, 'utf-8', read)
@@ -148,10 +150,10 @@ function install (file, toinstall, done) {
     bars[file].tick({ msg: dep })
     fs.stat(path.join(file, 'node_modules', dep), (err) => {
       if (err) {
-        exec('npm i ' + dep + ' --production --link', { cwd: file })
+        exec('npm i ' + dep + ' --production --link', { cwd: file, maxBuffer })
         .on('close', () => install(file, toinstall, done))
       } else if (argv.update) {
-        exec('npm update ' + dep, { cwd: file })
+        exec('npm update ' + dep, { cwd: file, maxBuffer })
         .on('close', () => install(file, toinstall, done))
       } else {
         install(file, toinstall, done)
@@ -169,7 +171,7 @@ function link (file, tolink, done) {
     const from = links[dep]
     const to = path.join(file, 'node_modules', dep)
     bars[file].tick({ msg: dep })
-    exec(`rm -rf ${to} && ln -s ` + from + ' ' + to)
+    exec(`rm -rf ${to} && ln -s ` + from + ' ' + to, { maxBuffer })
     .on('close', () => link(file, tolink, done))
   } else {
     done()
@@ -185,7 +187,7 @@ function test () {
         bar.tick({ msg: 'testing' + dots })
         dots = dots[2] ? '' : dots + '.'
       }, 500)
-      exec('npm test', { cwd: file })
+      exec('npm test', { cwd: file, maxBuffer })
       .on('close', (code) => {
         global.clearInterval(int)
         bar.tick({ msg: code ? '⨯'.red.bold : '✓'.green.bold })
