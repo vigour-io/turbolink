@@ -37,15 +37,22 @@ fs.readdir(dirname, (err, files) => {
       if (err) {
         return count--
       }
-      fs.readFile(pkgpath, 'utf-8', (err, data) => {
-        if (err) { throw err }
-        const pkg = JSON.parse(data)
-        const l = pkg.name.length
-        packages[file] = pkg
-        links[pkg.name] = file
-        strlength = l > strlength ? l : strlength
-        --count || proceed()
-      })
+      if (argv.pull) {
+        exec('git pull', { cwd: file }).on('close', readpackage)
+      } else {
+        readpackage()
+      }
+      function readpackage () {
+        fs.readFile(pkgpath, 'utf-8', (err, data) => {
+          if (err) { throw err }
+          const pkg = JSON.parse(data)
+          const l = pkg.name.length
+          packages[file] = pkg
+          links[pkg.name] = file
+          strlength = l > strlength ? l : strlength
+          --count || proceed()
+        })
+      }
     })
   }
 })
