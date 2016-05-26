@@ -172,7 +172,7 @@ function link (file, tolink, done) {
     const node_modules = path.join(file, 'node_modules')
     const to = path.join(node_modules, dep)
     bars[file].tick({ msg: dep })
-    fs.stat(path.join(file, 'node_modules', dep), (err) => {
+    fs.stat(node_modules, (err) => {
       if (err) {
         exec(`mkdir ${node_modules} && ln -s ` + from + ' ' + to, { maxBuffer })
         .on('close', () => link(file, tolink, done))
