@@ -171,7 +171,7 @@ function link (file, tolink, done) {
     const from = links[dep]
     const to = path.join(file, 'node_modules', dep)
     bars[file].tick({ msg: dep })
-    exec(`rm -rf ${to} && ln -s ` + from + ' ' + to, { maxBuffer })
+    exec(`rm -rf ${to} && mkdir node_modules && ln -s ` + from + ' ' + to, { maxBuffer })
     .on('close', () => link(file, tolink, done))
   } else {
     done()
