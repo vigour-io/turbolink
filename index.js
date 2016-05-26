@@ -169,9 +169,11 @@ function link (file, tolink, done) {
   if (dep) {
     bars[file].tick({ msg: dep })
     const from = links[dep]
-    const to = path.join(file, 'node_modules', dep)
+    const node_modules = path.join(file, 'node_modules')
+    const to = path.join(node_modules, dep)
     bars[file].tick({ msg: dep })
-    exec(`rm -rf ${to} && mkdir node_modules && ln -s ` + from + ' ' + to, { maxBuffer })
+    exec(`mkdir ${node_modules} && rm -rf ${to} && ln -s ` + from + ' ' + to, { maxBuffer })
+    // exec(`rm -rf ${to} && mkdir ${node_modules} && ln -s ` + from + ' ' + to, { maxBuffer })
     .on('close', () => link(file, tolink, done))
   } else {
     done()
