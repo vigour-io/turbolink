@@ -1,6 +1,6 @@
 {
   "name": "turbolink",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "Links all your projects together, where npm link fails.",
   "main": "index.js",
   "bin": {
