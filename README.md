@@ -20,7 +20,7 @@ npm i turbolink -g
 Installing with linking
 
 ```shell
-git clone git@github.com:vigour-io/turbolink.git && npm link
+git clone git@github.com:vigour-io/turbolink.git && cd turbolink && npm link
 ```
 
 
