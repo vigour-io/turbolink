@@ -170,11 +170,12 @@ function link (file, tolink, done) {
     bars[file].tick({ msg: dep })
     const from = links[dep]
     const node_modules = path.join(file, 'node_modules')
+    const dir = dep[0] === '@' ? path.join(node_modules, dep.split('/')[0]) : node_modules
     const to = path.join(node_modules, dep)
     bars[file].tick({ msg: dep })
-    fs.stat(node_modules, (err) => {
+    fs.stat(dir, (err) => {
       if (err) {
-        exec(`mkdir ${node_modules} && ln -s ` + from + ' ' + to, { maxBuffer })
+        exec(`mkdir -p ${dir} && ln -s ` + from + ' ' + to, { maxBuffer })
         .on('close', () => link(file, tolink, done))
       } else {
         exec(`rm -rf ${to} && ln -s ` + from + ' ' + to, { maxBuffer })
