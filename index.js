@@ -147,7 +147,7 @@ function collect (deps, tolink, toinstall) {
 function install (file, toinstall, done) {
   const dep = toinstall.shift()
   if (dep) {
-    bars[file].tick({ msg: dep })
+    bars[file].tick({ msg: `install: ${dep}` })
     fs.stat(path.join(file, 'node_modules', dep), (err) => {
       if (err) {
         exec('npm i ' + dep + ' --production --link', { cwd: file, maxBuffer })
@@ -167,7 +167,7 @@ function install (file, toinstall, done) {
 function link (file, tolink, done) {
   const dep = tolink.shift()
   if (dep) {
-    bars[file].tick({ msg: dep })
+    bars[file].tick({ msg: `link: ${dep}` })
     const from = links[dep]
     const node_modules = path.join(file, 'node_modules')
     const dir = dep[0] === '@' ? path.join(node_modules, dep.split('/')[0]) : node_modules
