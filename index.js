@@ -1,6 +1,7 @@
 'use strict'
 require('colors')
-const exec = require('child_process').exec
+const child_process = require('child_process')
+const exec = child_process.exec
 const charm = require('charm')(process)
 const Progress = require('multi-progress')
 const argv = require('argh').argv
@@ -21,6 +22,8 @@ var dirname = process.cwd()
 var pkgnumber = 0
 var strlength = 0
 var lines = 0
+
+var prefix = child_process.execSync('npm config get prefix').toString().trim()
 
 process.on('uncaughtException', exit)
 process.on('SIGINT', exit)
@@ -57,6 +60,9 @@ fs.stat(path.join(dirname, PKG), (err) => {
           if (argv.pull) {
             exec('git pull', { cwd: file, maxBuffer })
             .on('close', () => fs.readFile(pkgpath, 'utf-8', read))
+            .stderr.on('data', (data) => {
+              console.log('err: ' + file + ':' + data)
+            })
           } else {
             fs.readFile(pkgpath, 'utf-8', read)
           }
@@ -144,19 +150,36 @@ function collect (deps, tolink, toinstall) {
   }
 }
 
+const installing = {}
+const updating = {}
+
 function install (file, toinstall, done) {
   const dep = toinstall.shift()
   if (dep) {
-    bars[file].tick({ msg: dep })
-    fs.stat(path.join(file, 'node_modules', dep), (err) => {
-      if (err) {
-        exec('npm i ' + dep + ' --production --link', { cwd: file, maxBuffer })
-        .on('close', () => install(file, toinstall, done))
-      } else if (argv.update) {
+    const globalpath = path.join(prefix, 'lib', 'node_modules', dep)
+    fs.stat(globalpath, (err) => {
+      const to = path.join(file, 'node_modules', dep)
+      const dir = path.dirname(to)
+    // fs.stat(path.join(file, 'node_modules', dep), (err) => {
+      if (err && !installing[dep]) {
+        bars[file].tick({ msg: 'install: ' + dep})
+        exec('npm i ' + dep + ' --production -g', { cwd: file, maxBuffer })
+        .on('close', () => {
+          exec(`mkdir -p ${dir} && ln -s ` + globalpath + ' ' + to, { maxBuffer })
+          .on('close', () => install(file, toinstall, done))
+        })
+      } else if (argv.update && !updating[dep]) {
+        bars[file].tick({ msg: 'update: ' + dep })
         exec('npm update ' + dep, { cwd: file, maxBuffer })
-        .on('close', () => install(file, toinstall, done))
+        .on('close', () => {
+          exec(`mkdir -p ${dir} && ln -s ` + globalpath + ' ' + to, { maxBuffer })
+          .on('close', () => install(file, toinstall, done))
+        })
+        updating[dep] = true
       } else {
-        install(file, toinstall, done)
+        bars[file].tick({ msg: 'skip: ' + dep })
+        exec(`mkdir -p ${dir} && ln -s ` + globalpath + ' ' + to, { maxBuffer })
+          .on('close', () => install(file, toinstall, done))
       }
     })
   } else {
