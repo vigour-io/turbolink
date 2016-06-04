@@ -21,7 +21,7 @@ var dirname = process.cwd()
 var pkgnumber = 0
 var strlength = 0
 var lines = 0
-var useGlobal = argv.global
+var useGlobal = argv.global //global can be a path as well!
 var turbo = argv.turbo
 var settings
 var npmglobals
@@ -37,7 +37,7 @@ fs.stat(rcpath, (err) => {
       }
       useGlobal = true
       if (settings.turbo) {
-        turbo = true
+        turbo = settings.turbo
       }
     }
   }
@@ -72,7 +72,7 @@ function checkdir () {
       console.log('from .turbolink settings file'.green)
       if (settings.repos) {
         clonerepo(0, () => {
-          console.log('done!')
+          console.log('cloned repos...')
           init()
         })
       }
@@ -86,7 +86,7 @@ function clonerepo (i, done) {
   fs.stat(path.join(dirname, settings.repos[i]), (err) => {
     if (err) {
       console.log('git@' + settings.gitURL + '/' + settings.repos[i])
-      exec('git clone git@' + settings.gitURL + '/' + settings.repos[i], { maxBuffer })
+      exec('git clone git@' + settings.gitURL + '/' + settings.repos[i] + ' --depth 1', { maxBuffer })
       .on('close', () => {
         if (i < settings.repos.length - 1) {
           clonerepo(++i, done)
@@ -227,7 +227,9 @@ function install (file, toinstall, done) {
             if (err) {
               npmInstall(file, toinstall, done, dep)
             } else {
-              done()
+              process.nextTick(function () {
+                install(file, toinstall, done)
+              })
             }
           })
         } else {
@@ -318,5 +320,52 @@ function cleanup () {
 }
 
 function exit () {
-  process.exit()
+  if (turbo) {
+    turbomultilink()
+  } else {
+    process.exit()
+  }
+}
+
+function turbomultilink () {
+  var gmodules = fs.readdirSync(npmglobals)
+  gmodules = gmodules.filter((val) => !/^\./.test(val))
+  const l = Object.keys(links)
+  const r = []
+  for (var i in l) {
+    r.push(links[l[i]])
+  }
+  console.log('\n\n\n turbo multi link all modules: ' + gmodules.length * l.length)
+  dolinks(r, 0, () => process.exit(), gmodules)
+}
+
+function dolinks (arr, i, done, gmodules) {
+  if (i === arr.length) {
+    done()
+  } else {
+    console.log('   ' + (i + 1) * gmodules.length + '/' + gmodules.length * arr.length)
+    fs.stat(arr[i] + '/node_modules', (err) => {
+      if (err) {
+        fs.mkdirSync(arr[i] + '/node_modules')
+      }
+      let nm = fs.readdirSync((arr[i] + '/node_modules'))
+      let rdy = gmodules.length
+      for (let j in gmodules) {
+        if (nm.indexOf(gmodules[j]) === -1) {
+          var cmd = 'ln -s ' + npmglobals + '/' + gmodules[j] + ' ' + arr[i] + '/node_modules/' + gmodules[j]
+          exec(cmd, { maxBuffer }).on('close', function () {
+            rdy--
+            if (rdy === 0) {
+              dolinks(arr, ++i, done, gmodules)
+            }
+          })
+        } else {
+          rdy--
+          if (rdy === 0) {
+            dolinks(arr, ++i, done, gmodules)
+          }
+        }
+      }
+    })
+  }
 }
