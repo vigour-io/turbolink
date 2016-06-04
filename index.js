@@ -21,8 +21,10 @@ var dirname = process.cwd()
 var pkgnumber = 0
 var strlength = 0
 var lines = 0
+var useGlobal = argv.global
+var turbo = argv.turbo
 var settings
-var useGlobal
+var npmglobals
 
 const rcpath = path.join(dirname, '.turbolink')
 
@@ -34,16 +36,35 @@ fs.stat(rcpath, (err) => {
         argv.pull = true
       }
       useGlobal = true
+      if (settings.turbo) {
+        turbo = true
+      }
     }
   }
-  preInit()
+  if (turbo) {
+    if (turbo === true) {
+      const root = exec('npm root -g', { maxBuffer })
+      root.stdout.on('data', (data) => {
+        npmglobals = data.replace(/\n$/, '')
+        console.log('turbo-check:', npmglobals)
+      })
+      root.on('close', (data) => {
+        checkdir()
+      })
+    } else {
+      npmglobals = turbo
+      checkdir()
+    }
+  } else {
+    checkdir()
+  }
 })
 
 process.on('uncaughtException', exit)
 process.on('SIGINT', exit)
 process.on('exit', cleanup)
 
-function preInit () {
+function checkdir () {
   fs.stat(path.join(dirname, PKG), (err) => {
     console.log('TURBOLINK'.underline.bold)
     if (!err) { dirname = path.dirname(dirname) }
@@ -74,7 +95,7 @@ function clonerepo (i, done) {
         }
       })
     } else {
-      if (i < settings.repos.length) {
+      if (i < settings.repos.length - 1) {
         clonerepo(++i, done)
       } else {
         done()
@@ -201,11 +222,17 @@ function install (file, toinstall, done) {
     bars[file].tick({ msg: `install: ${dep}` })
     fs.stat(path.join(file, 'node_modules', dep), (err) => {
       if (err) {
-        exec(
-          `npm i ${dep} --production ${useGlobal ? '-g' : '--link'}`,
-          { cwd: file, maxBuffer }
-        )
-        .on('close', () => install(file, toinstall, done))
+        if (turbo) {
+          fs.stat(npmglobals + '/' + dep, (err, data) => {
+            if (err) {
+              npmInstall(file, toinstall, done, dep)
+            } else {
+              done()
+            }
+          })
+        } else {
+          npmInstall(file, toinstall, done, dep)
+        }
       } else if (argv.update) {
         exec('npm update ' + dep, { cwd: file, maxBuffer })
         .on('close', () => install(file, toinstall, done))
@@ -216,6 +243,14 @@ function install (file, toinstall, done) {
   } else {
     done()
   }
+}
+
+function npmInstall (file, toinstall, done, dep) {
+  exec(
+    `npm i ${dep} --production ${useGlobal ? '-g' : '--link'}`,
+    { cwd: file, maxBuffer }
+  )
+  .on('close', () => install(file, toinstall, done))
 }
 
 function link (file, tolink, done) {
