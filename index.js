@@ -21,18 +21,71 @@ var dirname = process.cwd()
 var pkgnumber = 0
 var strlength = 0
 var lines = 0
+var settings
+var useGlobal
+
+const rcpath = path.join(dirname, '.turbolink')
+
+fs.stat(rcpath, (err) => {
+  if (!err) {
+    settings = require(rcpath)
+    if (settings.global) {
+      if (settings.pull) {
+        argv.pull = true
+      }
+      useGlobal = true
+    }
+  }
+  preInit()
+})
 
 process.on('uncaughtException', exit)
 process.on('SIGINT', exit)
 process.on('exit', cleanup)
 
-fs.stat(path.join(dirname, PKG), (err) => {
-  console.log('TURBOLINK'.underline.bold)
+function preInit () {
+  fs.stat(path.join(dirname, PKG), (err) => {
+    console.log('TURBOLINK'.underline.bold)
+    if (!err) { dirname = path.dirname(dirname) }
+    if (settings) {
+      console.log('from .turbolink settings file'.green)
+      if (settings.repos) {
+        clonerepo(0, () => {
+          console.log('done!')
+          init()
+        })
+      }
+    } else {
+      init()
+    }
+  })
+}
+
+function clonerepo (i, done) {
+  fs.stat(path.join(dirname, settings.repos[i]), (err) => {
+    if (err) {
+      console.log('git@' + settings.gitURL + '/' + settings.repos[i])
+      exec('git clone git@' + settings.gitURL + '/' + settings.repos[i], { maxBuffer })
+      .on('close', () => {
+        if (i < settings.repos.length - 1) {
+          clonerepo(++i, done)
+        } else {
+          done()
+        }
+      })
+    } else {
+      if (i < settings.repos.length) {
+        clonerepo(++i, done)
+      } else {
+        done()
+      }
+    }
+  })
+}
+
+function init () {
   charm.cursor(false)
-  charm.position((x, y) => lines = y)
-
-  if (!err) { dirname = path.dirname(dirname) }
-
+  charm.position((x, y) => (lines = y))
   fs.readdir(dirname, (err, files) => {
     if (err) { throw err }
     let count = 0
@@ -41,7 +94,6 @@ fs.stat(path.join(dirname, PKG), (err) => {
       const pkgpath = path.join(file, PKG)
       count++
       fs.stat(pkgpath, (err) => {
-
         if (err) {
           return count--
         }
@@ -72,11 +124,10 @@ fs.stat(path.join(dirname, PKG), (err) => {
           pkgnumber += 1
           --count || proceed()
         }
-
       })
     }
   })
-})
+}
 
 function proceed () {
   var count = pkgnumber
@@ -150,7 +201,10 @@ function install (file, toinstall, done) {
     bars[file].tick({ msg: `install: ${dep}` })
     fs.stat(path.join(file, 'node_modules', dep), (err) => {
       if (err) {
-        exec('npm i ' + dep + ' --production --link', { cwd: file, maxBuffer })
+        exec(
+          `npm i ${dep} --production ${useGlobal ? '-g' : '--link'}`,
+          { cwd: file, maxBuffer }
+        )
         .on('close', () => install(file, toinstall, done))
       } else if (argv.update) {
         exec('npm update ' + dep, { cwd: file, maxBuffer })
@@ -169,9 +223,9 @@ function link (file, tolink, done) {
   if (dep) {
     bars[file].tick({ msg: `link: ${dep}` })
     const from = links[dep]
-    const node_modules = path.join(file, 'node_modules')
-    const dir = dep[0] === '@' ? path.join(node_modules, dep.split('/')[0]) : node_modules
-    const to = path.join(node_modules, dep)
+    const nodeModules = path.join(file, 'node_modules')
+    const dir = dep[0] === '@' ? path.join(nodeModules, dep.split('/')[0]) : nodeModules
+    const to = path.join(nodeModules, dep)
     bars[file].tick({ msg: dep })
     fs.stat(dir, (err) => {
       if (err) {
