@@ -129,8 +129,15 @@ function init () {
         function readpackage () {
           if (argv.pull) {
             const pull = exec('git pull', { cwd: file, maxBuffer })
-            pull.stderror.on('data', (data) => {
-              console.log(data)
+            pull.stderr.on('data', (data) => {
+              console.log('git:', file, data)
+            })
+            pull.stdout.on('data', (data) => {
+              if(/Already up-to-date/.test(data)) {
+
+              } else {
+                console.log('git:', file, data)
+              }
             })
             pull.on('close', () => fs.readFile(pkgpath, 'utf-8', read))
           } else {
