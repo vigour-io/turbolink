@@ -128,15 +128,17 @@ function init () {
 
         function readpackage () {
           if (argv.pull) {
-            exec('git pull', { cwd: file, maxBuffer })
-            .on('close', () => fs.readFile(pkgpath, 'utf-8', read))
+            const pull = exec('git pull', { cwd: file, maxBuffer })
+            pull.stderror.on('data', (data) => {
+              console.log(data)
+            })
+            pull.on('close', () => fs.readFile(pkgpath, 'utf-8', read))
           } else {
             fs.readFile(pkgpath, 'utf-8', read)
           }
         }
 
         function read (err, data) {
-          if (err) { throw err }
           const pkg = JSON.parse(data)
           const l = pkg.name.length
           packages[file] = pkg
