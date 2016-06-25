@@ -45,7 +45,7 @@ fs.stat(rcpath, (err) => {
     if (turbo === true) {
       const root = exec('npm root -g', { maxBuffer })
       root.stdout.on('data', (data) => {
-        npmglobals = data.replace(/\n$/, '')
+        npmglobals = data.toString().replace(/\n$/, '')
         console.log('turbo-check:', npmglobals)
       })
       root.on('close', (data) => {
@@ -130,10 +130,11 @@ function init () {
           if (argv.pull) {
             const pull = exec('git pull', { cwd: file, maxBuffer })
             pull.stderr.on('data', (data) => {
-              console.log('git:', file, data)
+              console.log('git:', file, data.toString())
             })
             pull.stdout.on('data', (data) => {
-              if(/Already up-to-date/.test(data)) {
+              data = data.toString()
+              if (/Already up-to-date/.test(data)) {
 
               } else {
                 console.log('git:', file, data)
@@ -145,8 +146,8 @@ function init () {
           }
         }
 
-        function read (err, data) {
-          const pkg = JSON.parse(data)
+        function read (er, data) {
+          const pkg = JSON.parse(data.toString())
           const l = pkg.name.length
           packages[file] = pkg
           links[pkg.name] = file
