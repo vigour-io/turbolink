@@ -40,6 +40,11 @@ fs.stat(rcpath, (err) => {
         turbo = settings.turbo
       }
     }
+    if (!settings.local) {
+      settings.local = {
+        'pre-commit': true
+      }
+    }
   }
   if (turbo) {
     if (turbo === true) {
@@ -232,7 +237,7 @@ function install (file, toinstall, done) {
     bars[file].tick({ msg: `install: ${dep}` })
     fs.stat(path.join(file, 'node_modules', dep), (err) => {
       if (err) {
-        if (turbo) {
+        if (turbo && !(settings.local && settings.local[dep])) {
           fs.stat(npmglobals + '/' + dep, (err, data) => {
             if (err) {
               npmInstall(file, toinstall, done, dep)
@@ -259,7 +264,7 @@ function install (file, toinstall, done) {
 
 function npmInstall (file, toinstall, done, dep) {
   exec(
-    `npm i ${dep} --production ${useGlobal ? '-g' : '--link'}`,
+    `npm i ${dep} --production ${useGlobal && !(settings.local && settings.local[dep]) ? '-g' : '--link'}`,
     { cwd: file, maxBuffer }
   )
   .on('close', () => install(file, toinstall, done))
