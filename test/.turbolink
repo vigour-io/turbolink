@@ -1,0 +1,14 @@
+'use strict'
+module.exports = {
+  gitUrl: 'github.com',
+  repos: {
+    'vigour-io': {
+      'base': 'master',
+      'player': 'refactor'
+    }
+  },
+  gitURL: 'github.com:vigour-io',
+  global: true,
+  pull: true,
+  turbo: true
+}

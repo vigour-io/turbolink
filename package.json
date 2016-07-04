@@ -2,7 +2,7 @@
   "name": "turbolink",
   "version": "1.2.1",
   "description": "Links all your projects together, where npm link fails.",
-  "main": "index.js",
+  "main": "lib/index.js",
   "bin": {
     "turbolink": "bin/cmd.js",
     "tl": "bin/cmd.js"

@@ -1,9 +1,11 @@
-'use strict'
-require('colors')
+
+
+const 
+
 const exec = require('child_process').exec
 const charm = require('charm')(process)
 const Progress = require('multi-progress')
-const argv = require('argh').argv
+
 const path = require('path')
 const fs = require('fs')
 
@@ -67,12 +69,21 @@ fs.stat(rcpath, (err) => {
 
 process.on('uncaughtException', exit)
 process.on('SIGINT', exit)
-process.on('exit', cleanup)
+// process.on('exit', cleanup)
 
 function checkdir () {
+  console.log('check dir', dirname, 'pkg?', path.join(dirname, PKG))
+
   fs.stat(path.join(dirname, PKG), (err) => {
     console.log('TURBOLINK'.underline.bold)
     if (!err) { dirname = path.dirname(dirname) }
+
+
+    console.log('found package?', !err)
+
+    console.log('if not error, make dirname', path.dirname(dirname))
+
+    process.exit()
     if (settings) {
       console.log('from .turbolink settings file'.green)
       if (settings.repos) {

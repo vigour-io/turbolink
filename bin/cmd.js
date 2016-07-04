@@ -1,2 +1,6 @@
 #!/usr/bin/env node
-require('../')
+
+const turboLink = require('../')
+const argv = require('argh').argv
+
+turboLink(argv)
