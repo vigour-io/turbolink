@@ -334,7 +334,8 @@ function cleanup () {
   charm.destroy()
 }
 
-function exit () {
+function exit (reason) {
+  console.log('exit!', reason)
   if (turbo) {
     turbomultilink()
   } else {
