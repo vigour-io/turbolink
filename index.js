@@ -113,7 +113,7 @@ function clonerepo (i, done) {
           console.log('got branch checkout', branch, path.join(process.cwd(), dir))
           const fetch = exec(`git fetch origin`, { maxBuffer, cwd: path.join(process.cwd(), dir) })
           fetch.stderr.on('data', err => {
-            console.log(err)
+            console.log(err.toString().red)
           })
 
           fetch.stdout.on('data', data => {
@@ -123,7 +123,7 @@ function clonerepo (i, done) {
           fetch.on('close', () => {
             const br = exec(`git checkout ${branch}`, { maxBuffer, cwd: path.join(process.cwd(), dir) })
             br.stderr.on('data', err => {
-              console.log(err)
+              console.log(err.toString().red)
             })
             br.on('close', () => {
               repoDone(i, done)
@@ -169,7 +169,7 @@ function init () {
           if (argv.pull) {
             const pull = exec('git pull', { cwd: file, maxBuffer })
             pull.stderr.on('data', (data) => {
-              console.log('git:', file, data.toString())
+              console.log('git:'.red, file.red, data.toString().red)
             })
             pull.stdout.on('data', (data) => {
               data = data.toString()
@@ -369,7 +369,7 @@ function cleanup () {
 }
 
 function exit (reason) {
-  console.log('exit!', reason)
+  console.log('exit!'.red, reason.toString().red)
   if (turbo) {
     turbomultilink()
   } else {
