@@ -21,7 +21,7 @@ var dirname = process.cwd()
 var pkgnumber = 0
 var strlength = 0
 var lines = 0
-var useGlobal = argv.global //global can be a path as well!
+var useGlobal = argv.global // global can be a path as well!
 var turbo = argv.turbo
 var settings
 var npmglobals
@@ -87,16 +87,50 @@ function checkdir () {
   })
 }
 
+function repoDone (i, done) {
+  if (i < settings.repos.length - 1) {
+    clonerepo(++i, done)
+  } else {
+    done()
+  }
+}
+
 function clonerepo (i, done) {
   fs.stat(path.join(dirname, settings.repos[i]), (err) => {
     if (err) {
+      var branch
+      var dir
+      if (settings.repos[i].indexOf('#') > -1) {
+        const split = settings.repos[i].split('#')
+        branch = split[1]
+        settings.repos[i] = split[0]
+      }
+      dir = settings.repos[i]
       console.log('git@' + settings.gitURL + '/' + settings.repos[i])
-      exec('git clone git@' + settings.gitURL + '/' + settings.repos[i] + ' --depth 1', { maxBuffer })
+      exec('git clone git@' + settings.gitURL + '/' + settings.repos[i] + '', { maxBuffer })
       .on('close', () => {
-        if (i < settings.repos.length - 1) {
-          clonerepo(++i, done)
+        if (branch) {
+          console.log('got branch checkout', branch, path.join(process.cwd(), dir))
+          const fetch = exec(`git fetch origin`, { maxBuffer, cwd: path.join(process.cwd(), dir) })
+          fetch.stderr.on('data', err => {
+            console.log(err)
+          })
+
+          fetch.stdout.on('data', data => {
+            console.log(data)
+          })
+
+          fetch.on('close', () => {
+            const br = exec(`git checkout ${branch}`, { maxBuffer, cwd: path.join(process.cwd(), dir) })
+            br.stderr.on('data', err => {
+              console.log(err)
+            })
+            br.on('close', () => {
+              repoDone(i, done)
+            })
+          })
         } else {
-          done()
+          repoDone(i, done)
         }
       })
     } else {
