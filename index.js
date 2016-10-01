@@ -72,7 +72,6 @@ process.on('exit', cleanup)
 function checkdir () {
   fs.stat(path.join(dirname, PKG), (err) => {
     console.log('TURBOLINK'.underline.bold)
-    if (!err) { dirname = path.dirname(dirname) }
     if (settings) {
       console.log('from .turbolink settings file'.green)
       if (settings.repos) {
